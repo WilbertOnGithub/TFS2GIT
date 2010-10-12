@@ -42,15 +42,29 @@ function PrepareWorkspace
 
 
 # Retrieve the history from Team Foundation Server and use a regular expression to retrieve
-# the individual changeset.
+# the individual changeset number.
 function GetChangesetsFromHistory 
 {
 	$HistoryFileName = "history.txt"
 
 	tf history $TFSRepository /recursive /noprompt /format:brief | Out-File $HistoryFileName
 
-	$History = Get-Content $HistoryFileName
-	[array]$ChangeSets = [regex]::Matches($History, "\d{1,5}(?=\s{5}BC2SC)")
+	# Necessary, because Powershell has some 'issues' with current directory. 
+	# See http://huddledmasses.org/powershell-power-user-tips-current-directory/
+	$FileWithCurrentPath =  (Convert-Path (Get-Location -PSProvider FileSystem)) + "\" + $HistoryFileName 
+	
+	$file = [System.IO.File]::OpenText($FileWithCurrentPath)
+	# Skip first two lines 
+	$line = $file.ReadLine()
+	$line = $file.ReadLine()
+
+	while (!$file.EndOfStream)
+	{
+		$line = $file.ReadLine()
+		$num = [regex]::Match($line, "^\d+").Value
+		$ChangeSets = $ChangeSets + @([System.Convert]::ToInt32($num))
+	}
+	$file.Close()
 
 	# Sort them from low to high.
 	$ChangeSets = $ChangeSets | Sort-Object			 
