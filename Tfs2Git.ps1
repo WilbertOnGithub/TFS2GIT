@@ -38,6 +38,27 @@ function CheckParameters
 	}
 }
 
+function GetSpecifiedRangeFromHistory
+{
+	$ChangeSets = GetChangeSetsFromHistory
+
+	# Create an array
+	$FilteredChangeSets = @()
+
+	foreach ($ChangeSet in $ChangeSets)
+	{
+		if (($ChangeSet -ge $StartingCommit) -and ($ChangeSet -le $EndingCommit))
+		{
+			$FilteredChangeSets = $FilteredChangeSets + $ChangeSet
+		}
+	}
+
+	foreach ($ChangeSet in $FilteredChangeSets)
+	{
+		Write-Host $ChangeSet
+	}
+}
+
 function GetTemporaryDirectory
 {
 	return $env:temp + "\workspace"
@@ -183,6 +204,7 @@ function CleanUp
 function Main
 {
 	CheckParameters
+	GetSpecifiedRangeFromHistory
 
 #PrepareWorkspace
 #	Convert(GetChangesetsFromHistory)
