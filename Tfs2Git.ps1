@@ -23,6 +23,13 @@ function CheckParameters
 		return;
 	}
 
+	if (!$StartingCommit -or !$EndingCommit)
+	{
+		Write-Host "You must supply values for both parameters StartingCommit and EndingCommit"
+		Write-Host "Aborting..."
+		exit
+	}
+
 	if ($EndingCommit -le $StartingCommit)
 	{
 		Write-Host "Parameter EndingCommit" $EndingCommit "cannot have a lower or equal value than parameter StartingCommit" $StartingCommit
