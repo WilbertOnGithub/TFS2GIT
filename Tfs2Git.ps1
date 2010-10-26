@@ -53,10 +53,7 @@ function GetSpecifiedRangeFromHistory
 		}
 	}
 
-	foreach ($ChangeSet in $FilteredChangeSets)
-	{
-		Write-Host $ChangeSet
-	}
+	return $FilteredChangeSets
 }
 
 function GetTemporaryDirectory
@@ -204,12 +201,20 @@ function CleanUp
 function Main
 {
 	CheckParameters
-	GetSpecifiedRangeFromHistory
+	PrepareWorkspace
 
-#PrepareWorkspace
-#	Convert(GetChangesetsFromHistory)
-#	CloneToLocalBareRepository
-#	CleanUp
+	if ($StartingCommit -and $EndingCommit)
+	{
+		Write-Host "Filtering history...this may take a while"
+		Convert(GetSpecifiedRangeFromHistory)
+	}
+	else
+	{
+		Convert(GetChangeSetsFromHistory)
+	}
+
+	CloneToLocalBareRepository
+	CleanUp
 
 	Write-Host "Done!"
 }
