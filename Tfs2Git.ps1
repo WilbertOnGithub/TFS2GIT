@@ -10,8 +10,26 @@ Param
 	[Parameter(Mandatory = $True)]
 	[string]$TFSRepository,
 	[string]$GitRepository = "ConvertedFromTFS",
-	[string]$WorkspaceName = "TFS2GIT"
+	[string]$WorkspaceName = "TFS2GIT",
+	[int]$StartingCommit,
+	[int]$EndingCommit
 )
+
+function CheckParameters
+{
+	# If Starting and Ending commit are not used, simply ignore them.
+	if (!$StartingCommit -and !$EndingCommit)
+	{
+		return;
+	}
+
+	if ($EndingCommit -le $StartingCommit)
+	{
+		Write-Host "Parameter EndingCommit" $EndingCommit "cannot have a lower or equal value than parameter StartingCommit" $StartingCommit
+		Write-Host "Aborting..."
+		exit
+	}
+}
 
 function GetTemporaryDirectory
 {
@@ -157,10 +175,12 @@ function CleanUp
 
 function Main
 {
-	PrepareWorkspace
-	Convert(GetChangesetsFromHistory)
-	CloneToLocalBareRepository
-	CleanUp
+	CheckParameters
+
+#PrepareWorkspace
+#	Convert(GetChangesetsFromHistory)
+#	CloneToLocalBareRepository
+#	CleanUp
 
 	Write-Host "Done!"
 }
