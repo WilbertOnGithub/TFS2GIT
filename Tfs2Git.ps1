@@ -1,4 +1,4 @@
-# Script that copies the history of an entire Team Foundati::on Server repository to a Git repository.
+# Script that copies the history of an entire Team Foundation Server repository to a Git repository.
 # Author: Wilbert van Dolleweerd
 #
 # Assumptions:
@@ -41,8 +41,8 @@ function PrepareWorkspace
 }
 
 
-# Retrieve the history from Team Foundation Server and use a regular expression to retrieve
-# the individual changeset number.
+# Retrieve the history from Team Foundation Server, parse it line by line, 
+# and use a regular expression to retrieve the individual changeset numbers.
 function GetChangesetsFromHistory 
 {
 	$HistoryFileName = "history.txt"
@@ -61,6 +61,7 @@ function GetChangesetsFromHistory
 	while (!$file.EndOfStream)
 	{
 		$line = $file.ReadLine()
+		# Match digits at the start of the line
 		$num = [regex]::Match($line, "^\d+").Value
 		$ChangeSets = $ChangeSets + @([System.Convert]::ToInt32($num))
 	}
@@ -81,15 +82,25 @@ function Convert ([array]$ChangeSets)
 	Write-Host "Creating empty Git repository at", $TemporaryDirectory
 	git init $TemporaryDirectory
 
+	[bool]$RetrieveAll = true
 	foreach ($ChangeSet in $ChangeSets)
 	{
-		# Delete any leftover directories 
-		Get-Childitem -path $TemporaryDirectory -Recurse | Remove-Item -force -Recurse
-
 		# Retrieve sources from TFS
 		Write-Host "Retrieving sources from", $TFSRepository, "in", $TemporaryDirectory
 		Write-Host "This is changeset", $ChangeSet
-		tf get $TemporaryDirectory /overwrite /force /recursive /noprompt /version:C$ChangeSet | Out-Null
+
+		if ($RetrieveAll)
+		{
+			# For the first changeset, we have to get everything.
+			tf get $TemporaryDirectory /force /recursive /noprompt /version:C$ChangeSet | Out-Null
+			$RetrieveAll = false
+		}
+		else
+		{
+			# Now, only get the changed files.
+			tf get $TemporaryDirectory /recursive /noprompt /version:C$ChangeSet | Out-Null
+		}
+
 
 		# Add sources to Git
 		Write-Host "Adding sources to Git repository"
