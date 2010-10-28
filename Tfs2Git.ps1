@@ -82,7 +82,7 @@ function Convert ([array]$ChangeSets)
 	Write-Host "Creating empty Git repository at", $TemporaryDirectory
 	git init $TemporaryDirectory
 
-	[bool]$RetrieveAll = true
+	[bool]$RetrieveAll = $true
 	foreach ($ChangeSet in $ChangeSets)
 	{
 		# Retrieve sources from TFS
@@ -93,7 +93,7 @@ function Convert ([array]$ChangeSets)
 		{
 			# For the first changeset, we have to get everything.
 			tf get $TemporaryDirectory /force /recursive /noprompt /version:C$ChangeSet | Out-Null
-			$RetrieveAll = false
+			$RetrieveAll = $false
 		}
 		else
 		{
