@@ -17,6 +17,7 @@ Param
 	[string]$WorkspaceName = "TFS2GIT",
 	[int]$StartingCommit,
 	[int]$EndingCommit
+	[string]$UserFile
 )
 
 # Do some sanity checks on specific parameters.
@@ -104,12 +105,23 @@ function GetSpecifiedRangeFromHistory
 	return $FilteredChangeSets
 }
 
+$userMapping = @{}
+
 function GetTemporaryDirectory
 {
 	return $env:temp + "\workspace"
 }
 
-# Create a TFS workspace that is used when importing
+function prepareUserMapping
+{
+	if ($UserFile -and $(Test-Path $UserFile)) {
+		Get-Content $UserFile | foreach { [regex]::Matches($_, "^([^=]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
+	}
+	foreach ($key in $userMapping.Keys) {
+		Write-Host $key "=>" $userMapping[$key]
+	}
+}
+
 function PrepareWorkspace
 {
 	$TempDir = GetTemporaryDirectory
@@ -159,7 +171,7 @@ function GetAllChangesetsFromHistory
 	# Sort them from low to high.
 	$ChangeSets = $ChangeSets | Sort-Object			 
 
-	return $ChangeSets			 
+	return $ChangeSets
 }
 
 # Actual converting takes place here.
@@ -201,12 +213,20 @@ function Convert ([array]$ChangeSets)
 		git add . | Out-Null
 		$CommitMessageFileName = "commitmessage.txt"
 		GetCommitMessage $ChangeSet $CommitMessageFileName
-
+		$commitMsg = Get-Content $CommitMessageFileName
+		
 		# We don't want the commit message to be included, so we remove it from the index.
 		# Not from the working directory, because we need it in the commit command.
-		git rm $CommitMessageFileName --cached --force
+		#git rm $CommitMessageFileName --cached --force
 		
-		git commit -a --file $CommitMessageFileName | Out-Null
+		$match = ([regex]'User: (\w+)').Match($commitMsg)
+		if ($userMapping.Count -gt 0 -and $match.Success) {
+			Write-Host "Author is" $userMapping[$match.Groups[1].Value]
+			git commit --file $CommitMessageFileName --author $userMapping[$match.Groups[1].Value] | Out-Null
+		}
+		else {
+			git commit --file $CommitMessageFileName $author | Out-Null
+		}
 		popd 
 	}
 }
@@ -251,6 +271,7 @@ function CleanUp
 function Main
 {
 	CheckParameters
+	prepareUserMapping
 	PrepareWorkspace
 
 	if ($StartingCommit -and $EndingCommit)
