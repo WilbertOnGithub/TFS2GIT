@@ -108,6 +108,11 @@ function Convert ([array]$ChangeSets)
 		git add . | Out-Null
 		$CommitMessageFileName = "commitmessage.txt"
 		GetCommitMessage $ChangeSet $CommitMessageFileName
+
+		# We don't want the commit message to be included, so we remove it from the index.
+		# Not from the working directory, because we need it in the commit command.
+		git rm $CommitMessageFileName --cached --force
+		
 		git commit -a --file $CommitMessageFileName | Out-Null
 		popd 
 	}
