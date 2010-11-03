@@ -10,12 +10,25 @@ Param
 	[Parameter(Mandatory = $True)]
 	[string]$TFSRepository,
 	[string]$GitRepository = "ConvertedFromTFS",
-	[string]$WorkspaceName = "TFS2GIT"
+	[string]$WorkspaceName = "TFS2GIT",
+	[string]$UserFile
 )
+
+$userMapping = @{}
 
 function GetTemporaryDirectory
 {
 	return $env:temp + "\workspace"
+}
+
+function prepareUserMapping
+{
+	if ($UserFile -and $(Test-Path $UserFile)) {
+		Get-Content $UserFile | foreach { [regex]::Matches($_, "^([^=]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
+	}
+	foreach ($key in $userMapping.Keys) {
+		Write-Host $key "=>" $userMapping[$key]
+	}
 }
 
 function PrepareWorkspace
@@ -70,7 +83,7 @@ function GetChangesetsFromHistory
 	# Sort them from low to high.
 	$ChangeSets = $ChangeSets | Sort-Object			 
 
-	return $ChangeSets			 
+	return $ChangeSets
 }
 
 # Actual converting takes place here.
@@ -108,12 +121,20 @@ function Convert ([array]$ChangeSets)
 		git add . | Out-Null
 		$CommitMessageFileName = "commitmessage.txt"
 		GetCommitMessage $ChangeSet $CommitMessageFileName
-
+		$commitMsg = Get-Content $CommitMessageFileName
+		
 		# We don't want the commit message to be included, so we remove it from the index.
 		# Not from the working directory, because we need it in the commit command.
-		git rm $CommitMessageFileName --cached --force
+		#git rm $CommitMessageFileName --cached --force
 		
-		git commit -a --file $CommitMessageFileName | Out-Null
+		$match = ([regex]'User: (\w+)').Match($commitMsg)
+		if ($userMapping.Count -gt 0 -and $match.Success) {
+			Write-Host "Author is" $userMapping[$match.Groups[1].Value]
+			git commit --file $CommitMessageFileName --author $userMapping[$match.Groups[1].Value] | Out-Null
+		}
+		else {
+			git commit --file $CommitMessageFileName $author | Out-Null
+		}
 		popd 
 	}
 }
@@ -156,6 +177,7 @@ function CleanUp
 
 function Main
 {
+	prepareUserMapping
 	PrepareWorkspace
 	Convert(GetChangesetsFromHistory)
 	CloneToLocalBareRepository
