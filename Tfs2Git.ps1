@@ -94,6 +94,12 @@ function Convert ([array]$ChangeSets)
 	# Initialize a new git repository.
 	Write-Host "Creating empty Git repository at", $TemporaryDirectory
 	git init $TemporaryDirectory
+	
+	# Make git act like Windows instead of Linux. If we don't do this, we could run into
+	# some serious problems if someone changed case on a directory name
+	pushd $TemporaryDirectory
+	git config core.ignorecase true 
+	popd
 
 	[bool]$RetrieveAll = $true
 	foreach ($ChangeSet in $ChangeSets)
