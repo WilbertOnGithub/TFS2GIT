@@ -1,6 +1,10 @@
-tkellogg=Tim Kellogg <tkellogg@kpaonline.com>
-wdepril=Wim De Pril <wdepril@kpaonline.com>
-agreen=Alex Green <agreen@kpaonline.com>
-cvinall=Chris Vinall <cvinall@kpaonline.com>
-enelsestuen=Erik Nelsestuen <enelsestuen@kpaonline.com>
-mgrundy=Michael Grundy <mgrundy@kpaonline.com>
+# These are user mappings. The format is
+#
+# tfs-user=Git User <gituser@example.com>
+#
+# One user per line, no spaces on either side of the equals. Enable this
+# feature by calling Tfs2Git.ps1 with the -UserFile option. 
+#
+# i.e. .\Tfs2Git.ps1 $/Sherpa -UserFile userMappings.txt
+
+#tkellogg=Tim Kellogg <tkellogg@kpaonline.com>
