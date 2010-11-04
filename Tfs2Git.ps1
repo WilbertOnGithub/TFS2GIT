@@ -24,7 +24,7 @@ function GetTemporaryDirectory
 function prepareUserMapping
 {
 	if ($UserFile -and $(Test-Path $UserFile)) {
-		Get-Content $UserFile | foreach { [regex]::Matches($_, "^([^=]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
+		Get-Content $UserFile | foreach { [regex]::Matches($_, "^([^=#]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
 	}
 	foreach ($key in $userMapping.Keys) {
 		Write-Host $key "=>" $userMapping[$key]
@@ -123,17 +123,14 @@ function Convert ([array]$ChangeSets)
 		GetCommitMessage $ChangeSet $CommitMessageFileName
 		$commitMsg = Get-Content $CommitMessageFileName
 		
-		# We don't want the commit message to be included, so we remove it from the index.
-		# Not from the working directory, because we need it in the commit command.
-		#git rm $CommitMessageFileName --cached --force
-		
 		$match = ([regex]'User: (\w+)').Match($commitMsg)
 		if ($userMapping.Count -gt 0 -and $match.Success) {
-			Write-Host "Author is" $userMapping[$match.Groups[1].Value]
-			git commit --file $CommitMessageFileName --author $userMapping[$match.Groups[1].Value] | Out-Null
+			$author = $userMapping[$match.Groups[1].Value]
+			Write-Host "Author is" $author
+			git commit --file $CommitMessageFileName --author $author | Out-Null
 		}
 		else {
-			git commit --file $CommitMessageFileName $author | Out-Null
+			git commit --file $CommitMessageFileName | Out-Null
 		}
 		popd 
 	}
