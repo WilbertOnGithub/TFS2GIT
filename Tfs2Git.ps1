@@ -35,9 +35,6 @@ function PrepareWorkspace
 	tf workspace /new /noprompt /comment:"Temporary workspace for converting a TFS repository to Git" $WorkspaceName
 	tf workfold /unmap /workspace:$WorkspaceName $/
 	tf workfold /map /workspace:$WorkspaceName $TFSRepository $TempDir
-
-	# We need this so the .git directory is hidden and will not be removed.
-	git config --global core.hidedotfiles true
 }
 
 
