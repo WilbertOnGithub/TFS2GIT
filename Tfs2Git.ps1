@@ -79,6 +79,10 @@ function Convert ([array]$ChangeSets)
 	Write-Host "Creating empty Git repository at", $TemporaryDirectory
 	git init $TemporaryDirectory
 
+	# Let git disregard casesensitivity for this repository (make it act like Windows).
+	# Prevents problems when someones only changes case on a file or directory.
+	git config core.ignorecase true
+
 	[bool]$RetrieveAll = $true
 	foreach ($ChangeSet in $ChangeSets)
 	{
