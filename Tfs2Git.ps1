@@ -1,5 +1,9 @@
 # Script that copies the history of an entire Team Foundation Server repository to a Git repository.
-# Author: Wilbert van Dolleweerd
+# Original author: Wilbert van Dolleweerd (wilbert@arentheym.com)
+#
+# Contributions from:
+# - Patrick Slagmeulen
+# - Tim Kellogg (timothy.kellogg@gmail.com)
 #
 # Assumptions:
 # - MSysgit is installed and in the PATH 
