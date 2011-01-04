@@ -45,6 +45,42 @@ function CheckParameters
 	}
 }
 
+# Checks if specified commits are actually present in the history
+# If not, script is aborted.
+function AreSpecifiedCommitsPresent([array]$ChangeSets)
+{
+	[bool]$StartingCommitFound = $false
+	[bool]$EndingCommitFound = $false
+	foreach ($ChangeSet in $ChangeSets)
+	{
+		if ($ChangeSet -eq $StartingCommit)
+		{
+			$StartingCommitFound = $true
+		}
+		if ($ChangeSet -eq $EndingCommit)
+		{
+			$EndingCommitFound = $true
+		}
+	}
+
+	if (!$StartingCommitFound -or !$EndingCommitFound)
+	{
+		if (!$StartingCommitFound)
+		{
+			Write-Host "Specified starting commit" $StartingCommit "was not found in the history of" $TFSRepository
+			Write-Host "Please check your starting commit parameter."
+		}
+		if (!$EndingCommitFound)
+		{
+			Write-Host "Specified ending commit" $EndingCommit "was not found in the history of" $TFSRepository
+			Write-Host "Please check your ending commit parameter."			
+		}
+
+		Write-Host "Aborting..."		
+		exit
+	}
+}
+
 function GetSpecifiedRangeFromHistory
 {
 	$ChangeSets = GetAllChangeSetsFromHistory
@@ -213,6 +249,7 @@ function Main
 	if ($StartingCommit -and $EndingCommit)
 	{
 		Write-Host "Filtering history...this may take a while"
+		AreSpecifiedCommitsPresent(GetAllChangeSetsFromHistory)
 		Convert(GetSpecifiedRangeFromHistory)
 	}
 	else
