@@ -47,7 +47,7 @@ function CheckParameters
 
 function GetSpecifiedRangeFromHistory
 {
-	$ChangeSets = GetChangeSetsFromHistory
+	$ChangeSets = GetAllChangeSetsFromHistory
 
 	# Create an array
 	$FilteredChangeSets = @()
@@ -90,7 +90,7 @@ function PrepareWorkspace
 
 # Retrieve the history from Team Foundation Server, parse it line by line, 
 # and use a regular expression to retrieve the individual changeset numbers.
-function GetChangesetsFromHistory 
+function GetAllChangesetsFromHistory 
 {
 	$HistoryFileName = "history.txt"
 
@@ -217,7 +217,7 @@ function Main
 	}
 	else
 	{
-		Convert(GetChangeSetsFromHistory)
+		Convert(GetAllChangeSetsFromHistory)
 	}
 
 	CloneToLocalBareRepository
