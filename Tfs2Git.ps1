@@ -112,6 +112,7 @@ function GetTemporaryDirectory
 }
 
 $userMapping = @{}
+# Creates a hashtable with the user account name as key and the name/email address as value
 function PrepareUserMapping
 {
 	if ($UserFile -and $(Test-Path $UserFile)) 
@@ -220,9 +221,20 @@ function Convert ([array]$ChangeSets)
 		$match = ([regex]'User: (\w+)').Match($commitMsg)
 		if ($userMapping.Count -gt 0 -and $match.Success) 
 		{	
-			$author = $userMapping[$match.Groups[1].Value]
-			Write-Host "Author is" $author
-			git commit --file $CommitMessageFileName --author $author | Out-Null
+			[string]$index = $match.Groups[1].Value
+			
+			if ($userMapping.ContainsKey($index))
+			{
+				$author = $userMapping[$index]
+				Write-Host "Author is" $author
+				git commit --file $CommitMessageFileName --author $author | Out-Null									
+			}
+			else
+			{
+				Write-Host "Could not find author" $match.Groups[1].Value "in usermapping file"
+				git commit --file $CommitMessageFileName | Out-Null			
+			}
+
 		}
 		else 
 		{
