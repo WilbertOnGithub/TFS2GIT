@@ -111,9 +111,8 @@ function GetTemporaryDirectory
 	return $env:temp + "\workspace"
 }
 
-$userMapping = @{}
 # Creates a hashtable with the user account name as key and the name/email address as value
-function PrepareUserMapping
+function GetUserMapping
 {
 	if (!(Test-Path $UserMappingFile))
 	{
@@ -122,12 +121,16 @@ function PrepareUserMapping
 		exit
 	}	
 
+	$UserMapping = @{}
+
 	Write-Host "Reading usermapping file" $UserMappingFile
 	Get-Content $UserMappingFile | foreach { [regex]::Matches($_, "^([^=#]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
 	foreach ($key in $userMapping.Keys) 
 	{
 		Write-Host $key "=>" $userMapping[$key]
 	}
+
+	return $UserMapping
 }
 
 function PrepareWorkspace
@@ -195,6 +198,12 @@ function Convert ([array]$ChangeSets)
 	# Prevents problems when someones only changes case on a file or directory.
 	git config core.ignorecase true
 
+	# If we use this option, read the usermapping file.
+	if ($UserMappingFile)
+	{
+		$UserMapping = GetUserMapping
+	}
+
 	[bool]$RetrieveAll = $true
 	foreach ($ChangeSet in $ChangeSets)
 	{
@@ -222,13 +231,13 @@ function Convert ([array]$ChangeSets)
 		$CommitMessageFileName = "commitmessage.txt"
 		GetCommitMessage $ChangeSet $CommitMessageFileName
 
-		$commitMsg = Get-Content $CommitMessageFileName		
-		$match = ([regex]'User: (\w+)').Match($commitMsg)
-		if ($userMapping.Count -gt 0 -and $match.Success -and $userMapping.ContainsKey($match.Groups[1].Value)) 
+		$CommitMsg = Get-Content $CommitMessageFileName		
+		$Match = ([regex]'User: (\w+)').Match($commitMsg)
+		if ($UserMapping.Count -gt 0 -and $Match.Success -and $UserMapping.ContainsKey($Match.Groups[1].Value)) 
 		{	
-			$author = $userMapping[$match.Groups[1].Value]
-			Write-Host "Found user " $author "in user mapping file."
-			git commit --file $CommitMessageFileName --author $author | Out-Null									
+			$Author = $userMapping[$match.Groups[1].Value]
+			Write-Host "Found user " $Author "in user mapping file."
+			git commit --file $CommitMessageFileName --author $Author | Out-Null									
 		}
 		else 
 		{
@@ -278,7 +287,6 @@ function CleanUp
 function Main
 {
 	CheckParameters
-	PrepareUserMapping
 	PrepareWorkspace
 
 	if ($StartingCommit -and $EndingCommit)
