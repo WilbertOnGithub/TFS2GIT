@@ -116,14 +116,14 @@ function GetUserMapping
 {
 	if (!(Test-Path $UserMappingFile))
 	{
-		Write-Host "Could not read usermapping file" $UserMappingFile
+		Write-Host "Could not read user mapping file" $UserMappingFile
 		Write-Host "Aborting..."
 		exit
 	}	
 
 	$UserMapping = @{}
 
-	Write-Host "Reading usermapping file" $UserMappingFile
+	Write-Host "Reading user mapping file" $UserMappingFile
 	Get-Content $UserMappingFile | foreach { [regex]::Matches($_, "^([^=#]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
 	foreach ($key in $userMapping.Keys) 
 	{
@@ -204,12 +204,13 @@ function Convert ([array]$ChangeSets)
 		$UserMapping = GetUserMapping
 	}
 
+	Write-Host "Retrieving sources from", $TFSRepository, "in", $TemporaryDirectory
+
 	[bool]$RetrieveAll = $true
 	foreach ($ChangeSet in $ChangeSets)
 	{
 		# Retrieve sources from TFS
-		Write-Host "Retrieving sources from", $TFSRepository, "in", $TemporaryDirectory
-		Write-Host "This is changeset", $ChangeSet
+		Write-Host "Retrieving changeset", $ChangeSet
 
 		if ($RetrieveAll)
 		{
@@ -225,7 +226,7 @@ function Convert ([array]$ChangeSets)
 
 
 		# Add sources to Git
-		Write-Host "Adding sources to Git repository"
+		Write-Host "Adding commit to Git repository"
 		pushd $TemporaryDirectory
 		git add . | Out-Null
 		$CommitMessageFileName = "commitmessage.txt"
@@ -235,12 +236,18 @@ function Convert ([array]$ChangeSets)
 		$Match = ([regex]'User: (\w+)').Match($commitMsg)
 		if ($UserMapping.Count -gt 0 -and $Match.Success -and $UserMapping.ContainsKey($Match.Groups[1].Value)) 
 		{	
-			$Author = $userMapping[$match.Groups[1].Value]
-			Write-Host "Found user " $Author "in user mapping file."
+			$Author = $userMapping[$Match.Groups[1].Value]
+			Write-Host "Found user" $Author "in user mapping file."
 			git commit --file $CommitMessageFileName --author $Author | Out-Null									
 		}
 		else 
-		{
+		{	
+			if ($UserMappingFile)
+			{
+				$GitUserName = git config user.name
+				$GitUserEmail = git config user.email				
+				Write-Host "Could not find user" $Match.Groups[1].Value "in user mapping file. The default configured user" $GitUserName $GitUserEmail "will be used for this commit."
+			}
 			git commit --file $CommitMessageFileName | Out-Null
 		}
 		popd 
@@ -273,7 +280,7 @@ function CleanUp
 {
 	$TempDir = GetTemporaryDirectory
 
-	Write-Host "Removing workspace"
+	Write-Host "Removing workspace from TFS"
 	tf workspace /delete $WorkspaceName /noprompt
 
 	Write-Host "Removing working directories in" $TempDir
@@ -291,7 +298,7 @@ function Main
 
 	if ($StartingCommit -and $EndingCommit)
 	{
-		Write-Host "Filtering history...this may take a while"
+		Write-Host "Filtering history..."
 		AreSpecifiedCommitsPresent(GetAllChangeSetsFromHistory)
 		Convert(GetSpecifiedRangeFromHistory)
 	}
