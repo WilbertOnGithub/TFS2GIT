@@ -105,19 +105,21 @@ function GetSpecifiedRangeFromHistory
 	return $FilteredChangeSets
 }
 
-$userMapping = @{}
 
 function GetTemporaryDirectory
 {
 	return $env:temp + "\workspace"
 }
 
-function prepareUserMapping
+$userMapping = @{}
+function PrepareUserMapping
 {
-	if ($UserFile -and $(Test-Path $UserFile)) {
+	if ($UserFile -and $(Test-Path $UserFile)) 
+	{
 		Get-Content $UserFile | foreach { [regex]::Matches($_, "^([^=#]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
 	}
-	foreach ($key in $userMapping.Keys) {
+	foreach ($key in $userMapping.Keys) 
+	{
 		Write-Host $key "=>" $userMapping[$key]
 	}
 }
@@ -213,15 +215,17 @@ function Convert ([array]$ChangeSets)
 		git add . | Out-Null
 		$CommitMessageFileName = "commitmessage.txt"
 		GetCommitMessage $ChangeSet $CommitMessageFileName
-		$commitMsg = Get-Content $CommitMessageFileName
-		
+
+		$commitMsg = Get-Content $CommitMessageFileName		
 		$match = ([regex]'User: (\w+)').Match($commitMsg)
-		if ($userMapping.Count -gt 0 -and $match.Success) {
+		if ($userMapping.Count -gt 0 -and $match.Success) 
+		{	
 			$author = $userMapping[$match.Groups[1].Value]
 			Write-Host "Author is" $author
 			git commit --file $CommitMessageFileName --author $author | Out-Null
 		}
-		else {
+		else 
+		{
 			git commit --file $CommitMessageFileName | Out-Null
 		}
 		popd 
@@ -268,7 +272,7 @@ function CleanUp
 function Main
 {
 	CheckParameters
-	prepareUserMapping
+	PrepareUserMapping
 	PrepareWorkspace
 
 	if ($StartingCommit -and $EndingCommit)
