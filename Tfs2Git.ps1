@@ -32,7 +32,14 @@ function CheckParameters
 
 	if ($EndingCommit -le $StartingCommit)
 	{
-		Write-Host "Parameter EndingCommit" $EndingCommit "cannot have a lower or equal value than parameter StartingCommit" $StartingCommit
+		if ($EndingCommit -eq $StartingCommit)
+		{
+			Write-Host "Parameter StartingCommit" $StartingCommit "cannot have the same value as the parameter EndingCommit" $EndingCommit
+			Write-Host "Aborting..."
+			exit
+		}
+
+		Write-Host "Parameter EndingCommit" $EndingCommit "cannot have a lower value than parameter StartingCommit" $StartingCommit
 		Write-Host "Aborting..."
 		exit
 	}
