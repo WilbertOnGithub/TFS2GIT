@@ -1,2 +1,45 @@
 Instructions on how to use this script can be found at 
 http://walkingthestack.wordpress.com/2010/09/21/importing-a-tfs-repository-into-a-git-repository-using-powershell/
+
+Available parameters for this script:
+
+-TFSRepository (mandatory)
+The TFS repository you wish to import. Ie. $/repository. 
+
+-GitRepository (optional)
+The name you want to give the Git repository. If no parameter is supplied, the default name will 'ConvertedFromTFS'.
+
+-WorkSpaceName (optional)
+During the import a temporary TFS workspace will be created. You can specify the name you wish to use for this workspace. Default 'TFS2GIT'.
+
+-StartingCommit (optional)
+You can import a sequential range of commits. Specify the first TFS commit you want to import.
+When this parameter is used, EndingCommit must also be used.
+
+-EndingCommit (optional)
+You can import a sequential range of commits. Specify the last TFS commit you want to import.
+When this parameter is used, StartingCommit must also be used.
+
+-UserMappingFile (optional)
+The script can convert TFS user accounts to Git accounts. For this to work you need to specify a user mapping file.
+See the content of 'usermappings.txt' for an example.
+
+
+Examples:
+Converting a TFS repository with full history
+
+TFS2GIT.ps1 $/repository
+
+or
+
+TFS2GIT.ps1 -TFSRepository $/repository
+
+
+Converting a TFS repository with a limited history
+
+TFS2GIT.ps1 -TFSRepository $/repository -StartingCommit 1 -EndingCommit 100
+
+
+Converting a TFS repository while using a usermapping file
+
+TFS2GIT.ps1 -TFSRepository $/repository -UserMappingfile filename
