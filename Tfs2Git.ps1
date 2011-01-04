@@ -17,7 +17,7 @@ Param
 	[string]$WorkspaceName = "TFS2GIT",
 	[int]$StartingCommit,
 	[int]$EndingCommit,
-	[string]$UserFile
+	[string]$UserMappingFile
 )
 
 # Do some sanity checks on specific parameters.
@@ -115,10 +115,15 @@ $userMapping = @{}
 # Creates a hashtable with the user account name as key and the name/email address as value
 function PrepareUserMapping
 {
-	if ($UserFile -and $(Test-Path $UserFile)) 
+	if (!(Test-Path $UserMappingFile))
 	{
-		Get-Content $UserFile | foreach { [regex]::Matches($_, "^([^=#]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
-	}
+		Write-Host "Could not read usermapping file" $UserMappingFile
+		Write-Host "Aborting..."
+		exit
+	}	
+
+	Write-Host "Reading usermapping file" $UserMappingFile
+	Get-Content $UserMappingFile | foreach { [regex]::Matches($_, "^([^=#]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
 	foreach ($key in $userMapping.Keys) 
 	{
 		Write-Host $key "=>" $userMapping[$key]
@@ -222,7 +227,7 @@ function Convert ([array]$ChangeSets)
 		if ($userMapping.Count -gt 0 -and $match.Success -and $userMapping.ContainsKey($match.Groups[1].Value)) 
 		{	
 			$author = $userMapping[$match.Groups[1].Value]
-			Write-Host "Author is" $author
+			Write-Host "Found user " $author "in user mapping file."
 			git commit --file $CommitMessageFileName --author $author | Out-Null									
 		}
 		else 
