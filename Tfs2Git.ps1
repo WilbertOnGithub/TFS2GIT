@@ -219,22 +219,11 @@ function Convert ([array]$ChangeSets)
 
 		$commitMsg = Get-Content $CommitMessageFileName		
 		$match = ([regex]'User: (\w+)').Match($commitMsg)
-		if ($userMapping.Count -gt 0 -and $match.Success) 
+		if ($userMapping.Count -gt 0 -and $match.Success -and $userMapping.ContainsKey($match.Groups[1].Value)) 
 		{	
-			[string]$index = $match.Groups[1].Value
-			
-			if ($userMapping.ContainsKey($index))
-			{
-				$author = $userMapping[$index]
-				Write-Host "Author is" $author
-				git commit --file $CommitMessageFileName --author $author | Out-Null									
-			}
-			else
-			{
-				Write-Host "Could not find author" $match.Groups[1].Value "in usermapping file"
-				git commit --file $CommitMessageFileName | Out-Null			
-			}
-
+			$author = $userMapping[$match.Groups[1].Value]
+			Write-Host "Author is" $author
+			git commit --file $CommitMessageFileName --author $author | Out-Null									
 		}
 		else 
 		{
