@@ -16,7 +16,7 @@ Param
 	[string]$GitRepository = "ConvertedFromTFS",
 	[string]$WorkspaceName = "TFS2GIT",
 	[int]$StartingCommit,
-	[int]$EndingCommit
+	[int]$EndingCommit,
 	[string]$UserFile
 )
 
