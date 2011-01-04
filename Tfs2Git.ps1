@@ -15,6 +15,7 @@ Param
 	[int]$EndingCommit
 )
 
+# Do some sanity checks on specific parameters.
 function CheckParameters
 {
 	# If Starting and Ending commit are not used, simply ignore them.
@@ -45,8 +46,7 @@ function CheckParameters
 	}
 }
 
-# Checks if specified commits are actually present in the history
-# If not, script is aborted.
+# When doing a partial import, check if specified commits are actually present in the history
 function AreSpecifiedCommitsPresent([array]$ChangeSets)
 {
 	[bool]$StartingCommitFound = $false
@@ -81,6 +81,7 @@ function AreSpecifiedCommitsPresent([array]$ChangeSets)
 	}
 }
 
+# Build an array of changesets that are between the starting and the ending commit.
 function GetSpecifiedRangeFromHistory
 {
 	$ChangeSets = GetAllChangeSetsFromHistory
@@ -104,6 +105,7 @@ function GetTemporaryDirectory
 	return $env:temp + "\workspace"
 }
 
+# Create a TFS workspace that is used when importing
 function PrepareWorkspace
 {
 	$TempDir = GetTemporaryDirectory
@@ -241,6 +243,7 @@ function CleanUp
 	Remove-Item "history.txt"
 }
 
+# This is where all the fun starts...
 function Main
 {
 	CheckParameters
