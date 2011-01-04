@@ -232,6 +232,10 @@ function Convert ([array]$ChangeSets)
 		$CommitMessageFileName = "commitmessage.txt"
 		GetCommitMessage $ChangeSet $CommitMessageFileName
 
+		# We don't want the commit message to be included, so we remove it from the index.
+		# Not from the working directory, because we need it in the commit command.
+		git rm $CommitMessageFileName --cached --force		
+
 		$CommitMsg = Get-Content $CommitMessageFileName		
 		$Match = ([regex]'User: (\w+)').Match($commitMsg)
 		if ($UserMapping.Count -gt 0 -and $Match.Success -and $UserMapping.ContainsKey($Match.Groups[1].Value)) 
