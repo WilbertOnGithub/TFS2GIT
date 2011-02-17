@@ -4,6 +4,7 @@
 # Contributions from:
 # - Patrick Slagmeulen
 # - Tim Kellogg (timothy.kellogg@gmail.com)
+# - Mike Glenn (mglenn@ilude.com)
 #
 # Assumptions:
 # - MSysgit is installed and in the PATH 
@@ -12,9 +13,10 @@
 Param
 (
 	[Parameter(Mandatory = $True)]
+	[string]$TFSServer,
 	[string]$TFSRepository,
 	[string]$GitRepository = "ConvertedFromTFS",
-	[string]$WorkspaceName = "TFS2GIT",
+	[string]$WorkspaceName = "testspace",
 	[int]$StartingCommit,
 	[int]$EndingCommit,
 	[string]$UserMappingFile
@@ -146,10 +148,10 @@ function PrepareWorkspace
 	md $TempDir | Out-null
 
 	# Create the workspace and map it to the temporary directory we just created.
-	tf workspace /delete $WorkspaceName /noprompt
-	tf workspace /new /noprompt /comment:"Temporary workspace for converting a TFS repository to Git" $WorkspaceName
-	tf workfold /unmap /workspace:$WorkspaceName $/
-	tf workfold /map /workspace:$WorkspaceName $TFSRepository $TempDir
+	tf workspace /delete /server:$TFSServer $WorkspaceName /noprompt
+	tf workspace /new /server:$TFSServer /noprompt /comment:"Temporary workspace for converting a TFS repository to Git" $WorkspaceName
+	tf workfold /unmap /server:$TFSServer /workspace:$WorkspaceName $/
+	tf workfold /map /server:$TFSServer /workspace:$WorkspaceName $TFSRepository $TempDir
 }
 
 
@@ -159,7 +161,7 @@ function GetAllChangesetsFromHistory
 {
 	$HistoryFileName = "history.txt"
 
-	tf history $TFSRepository /recursive /noprompt /format:brief | Out-File $HistoryFileName
+	tf history /server:$TFSServer $TFSRepository /recursive /noprompt /format:brief | Out-File $HistoryFileName
 
 	# Necessary, because Powershell has some 'issues' with current directory. 
 	# See http://huddledmasses.org/powershell-power-user-tips-current-directory/
@@ -261,7 +263,7 @@ function Convert ([array]$ChangeSets)
 # Retrieve the commit message for a specific changeset
 function GetCommitMessage ([string]$ChangeSet, [string]$CommitMessageFileName)
 {	
-	tf changeset $ChangeSet /noprompt | Out-File $CommitMessageFileName -encoding utf8
+	tf changeset $ChangeSet /server:$TFSServer /noprompt | Out-File $CommitMessageFileName -encoding utf8
 }
 
 # Clone the repository to the directory where you started the script.
@@ -285,7 +287,7 @@ function CleanUp
 	$TempDir = GetTemporaryDirectory
 
 	Write-Host "Removing workspace from TFS"
-	tf workspace /delete $WorkspaceName /noprompt
+	tf workspace /delete /server:$TFSServer $WorkspaceName /noprompt
 
 	Write-Host "Removing working directories in" $TempDir
 	Remove-Item -path $TempDir -force -recurse
