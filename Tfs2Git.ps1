@@ -20,6 +20,17 @@ Param
 	[string]$UserMappingFile
 )
 
+function CheckPath([string]$program) 
+{
+	$count = (gcm -CommandType Application $program -ea 0 | Measure-Object).Count
+	if($count -le 0)
+	{
+		Write-Host "$program must be found in the PATH!"
+		Write-Host "Aborting..."
+		exit
+	}
+}
+
 # Do some sanity checks on specific parameters.
 function CheckParameters
 {
@@ -297,6 +308,8 @@ function CleanUp
 # This is where all the fun starts...
 function Main
 {
+	CheckPath("git.cmd")
+	CheckPath("tf.exe")
 	CheckParameters
 	PrepareWorkspace
 
