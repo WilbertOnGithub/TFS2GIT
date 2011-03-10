@@ -4,6 +4,7 @@
 # Contributions from:
 # - Patrick Slagmeulen
 # - Tim Kellogg (timothy.kellogg@gmail.com)
+# - Mike Glenn (mglenn@ilude.com)
 #
 # Assumptions:
 # - MSysgit is installed and in the PATH 
@@ -12,9 +13,10 @@
 Param
 (
 	[Parameter(Mandatory = $True)]
+	[string]$TFSServer,
 	[string]$TFSRepository,
 	[string]$GitRepository = "ConvertedFromTFS",
-	[string]$WorkspaceName = "TFS2GIT",
+	[string]$WorkspaceName = "testspace",
 	[int]$StartingCommit,
 	[int]$EndingCommit,
 	[string]$UserMappingFile
@@ -144,10 +146,10 @@ function PrepareWorkspace
 	md $TempDir | Out-null
 
 	# Create the workspace and map it to the temporary directory we just created.
-	tf workspace /delete $WorkspaceName /noprompt
-	tf workspace /new /noprompt /comment:"Temporary workspace for converting a TFS repository to Git" $WorkspaceName
-	tf workfold /unmap /workspace:$WorkspaceName $/
-	tf workfold /map /workspace:$WorkspaceName $TFSRepository $TempDir
+	tf workspace /delete /server:$TFSServer $WorkspaceName /noprompt
+	tf workspace /new /server:$TFSServer /noprompt /comment:"Temporary workspace for converting a TFS repository to Git" $WorkspaceName
+	tf workfold /unmap /server:$TFSServer /workspace:$WorkspaceName $/
+	tf workfold /map /server:$TFSServer /workspace:$WorkspaceName $TFSRepository $TempDir
 }
 
 
@@ -155,7 +157,13 @@ function PrepareWorkspace
 # and use a regular expression to retrieve the individual changeset numbers.
 function GetAllChangesetsFromHistory 
 {
+<<<<<<< HEAD
 	$content = tf history /server:$TFSServer $TFSRepository /recursive /noprompt /format:detailed | Out-String
+=======
+	$HistoryFileName = "history.txt"
+
+	tf history /server:$TFSServer $TFSRepository /recursive /noprompt /format:brief | Out-File $HistoryFileName
+>>>>>>> master
 
 	$match = @(new-object String('-', 139))
 	$msg = $content.Split($match, [stringsplitoptions]::RemoveEmptyEntries)
@@ -244,6 +252,15 @@ function Convert ([array]$ChangeSets)
 	}
 }
 
+<<<<<<< HEAD
+=======
+# Retrieve the commit message for a specific changeset
+function GetCommitMessage ([string]$ChangeSet, [string]$CommitMessageFileName)
+{	
+	tf changeset $ChangeSet /server:$TFSServer /noprompt | Out-File $CommitMessageFileName -encoding utf8
+}
+
+>>>>>>> master
 # Clone the repository to the directory where you started the script.
 function CloneToLocalBareRepository
 {
@@ -265,7 +282,7 @@ function CleanUp
 	$TempDir = GetTemporaryDirectory
 
 	Write-Host "Removing workspace from TFS"
-	tf workspace /delete $WorkspaceName /noprompt
+	tf workspace /delete /server:$TFSServer $WorkspaceName /noprompt
 
 	Write-Host "Removing working directories in" $TempDir
 	Remove-Item -path $TempDir -force -recurse
