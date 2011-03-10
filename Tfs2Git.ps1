@@ -100,20 +100,7 @@ function AreSpecifiedCommitsPresent([array]$ChangeSets)
 # Build an array of changesets that are between the starting and the ending commit.
 function GetSpecifiedRangeFromHistory
 {
-	$ChangeSets = GetAllChangeSetsFromHistory
-
-	# Create an array
-	$FilteredChangeSets = @()
-
-	foreach ($ChangeSet in $ChangeSets)
-	{
-		if (($ChangeSet -ge $StartingCommit) -and ($ChangeSet -le $EndingCommit))
-		{
-			$FilteredChangeSets = $FilteredChangeSets + $ChangeSet
-		}
-	}
-
-	return $FilteredChangeSets
+	return  GetAllChangeSetsFromHistory | Where-Object {($_.ChangeSet -ge $StartingCommit) -and ($_.ChangeSet -le $EndingCommit)}
 }
 
 
@@ -168,32 +155,45 @@ function PrepareWorkspace
 # and use a regular expression to retrieve the individual changeset numbers.
 function GetAllChangesetsFromHistory 
 {
-	$HistoryFileName = "history.txt"
+	$content = tf history /server:$TFSServer $TFSRepository /recursive /noprompt /format:detailed | Out-String
 
-	tf history $TFSRepository /recursive /noprompt /format:brief | Out-File $HistoryFileName
+	$match = @(new-object String('-', 139))
+	$msg = $content.Split($match, [stringsplitoptions]::RemoveEmptyEntries)
 
-	# Necessary, because Powershell has some 'issues' with current directory. 
-	# See http://huddledmasses.org/powershell-power-user-tips-current-directory/
-	$FileWithCurrentPath =  (Convert-Path (Get-Location -PSProvider FileSystem)) + "\" + $HistoryFileName 
-	
-	$file = [System.IO.File]::OpenText($FileWithCurrentPath)
-	# Skip first two lines 
-	$line = $file.ReadLine()
-	$line = $file.ReadLine()
+	# If we use this option, read the usermapping file.
+	$UserMapping = GetUserMapping
 
-	while (!$file.EndOfStream)
-	{
-		$line = $file.ReadLine()
-		# Match digits at the start of the line
-		$num = [regex]::Match($line, "^\d+").Value
-		$ChangeSets = $ChangeSets + @([System.Convert]::ToInt32($num))
+	$sets = @()
+
+	$msg | ForEach-Object {
+		$changeset = ((Select-String -InputObject $_ -Pattern "(?m)^Changeset: (?<Changeset>.*)$")| select -expand Matches | foreach {$_.groups["Changeset"].value})
+		$date = [DateTime]((Select-String -InputObject $_ -Pattern "(?m)^Date: (?<Date>.*)$")| select -expand Matches | foreach {$_.groups["Date"].value})
+		$user = ((Select-String -InputObject $_ -Pattern "(?m)^User: (?:\w+\\)?(?<User>\w+)")| select -expand Matches | foreach {$_.groups["User"].value})
+		$comment = [regex]::Match($_, "(?s)Comment:(?<Message>.*)Items:").Groups[1].Value.Trim()
+		
+		if($comment -ne "") {
+			$comment += "`n"
+		}
+		$comment += "Changeset: $changeset"
+		
+		$output = New-Object PsObject
+		Add-Member -InputObject $output NoteProperty ChangeSet ([int]$changeset)
+		Add-Member -InputObject $output NoteProperty Date ($date)
+		Add-Member -InputObject $output NoteProperty Comment ($comment)
+		Add-Member -InputObject $output NoteProperty FullMessage ($_.Trim())
+		#Add-Member -InputObject $output NoteProperty TfsUser ($user)
+		
+		if($UserMapping.ContainsKey($user)){
+			Add-Member -InputObject $output NoteProperty User ($userMapping[$user])
+		}
+		else {
+			Add-Member -InputObject $output NoteProperty User ($user)
+		}
+		
+		$sets += $output
 	}
-	$file.Close()
 
-	# Sort them from low to high.
-	$ChangeSets = $ChangeSets | Sort-Object			 
-
-	return $ChangeSets
+	return ($sets | Sort-Object -Property ChangeSet)
 }
 
 # Actual converting takes place here.
@@ -202,37 +202,31 @@ function Convert ([array]$ChangeSets)
 	$TemporaryDirectory = GetTemporaryDirectory
 
 	# Initialize a new git repository.
-	Write-Host "Creating empty Git repository at", $TemporaryDirectory
+	Write-Host "Creating empty Git repository at $TemporaryDirectory" 
 	git init $TemporaryDirectory
 
 	# Let git disregard casesensitivity for this repository (make it act like Windows).
 	# Prevents problems when someones only changes case on a file or directory.
 	git config core.ignorecase true
 
-	# If we use this option, read the usermapping file.
-	if ($UserMappingFile)
-	{
-		$UserMapping = GetUserMapping
-	}
-
-	Write-Host "Retrieving sources from", $TFSRepository, "in", $TemporaryDirectory
+	Write-Host "Retrieving sources from $TFSRepository in $TemporaryDirectory"
 
 	[bool]$RetrieveAll = $true
 	foreach ($ChangeSet in $ChangeSets)
 	{
 		# Retrieve sources from TFS
-		Write-Host "Retrieving changeset", $ChangeSet
+		Write-Host "Retrieving changeset $ChangeSet.ChangeSet" 
 
 		if ($RetrieveAll)
 		{
 			# For the first changeset, we have to get everything.
-			tf get $TemporaryDirectory /force /recursive /noprompt /version:C$ChangeSet | Out-Null
+			tf get $TemporaryDirectory /force /recursive /noprompt /version:C$ChangeSet.ChangeSet | Out-Null
 			$RetrieveAll = $false
 		}
 		else
 		{
 			# Now, only get the changed files.
-			tf get $TemporaryDirectory /recursive /noprompt /version:C$ChangeSet | Out-Null
+			tf get $TemporaryDirectory /recursive /noprompt /version:C$ChangeSet.ChangeSet | Out-Null
 		}
 
 
@@ -240,39 +234,14 @@ function Convert ([array]$ChangeSets)
 		Write-Host "Adding commit to Git repository"
 		pushd $TemporaryDirectory
 		git add . | Out-Null
-		$CommitMessageFileName = "commitmessage.txt"
-		GetCommitMessage $ChangeSet $CommitMessageFileName
-
-		# We don't want the commit message to be included, so we remove it from the index.
-		# Not from the working directory, because we need it in the commit command.
-		git rm $CommitMessageFileName --cached --force		
-
-		$CommitMsg = Get-Content $CommitMessageFileName		
-		$Match = ([regex]'User: (\w+)').Match($commitMsg)
-		if ($UserMapping.Count -gt 0 -and $Match.Success -and $UserMapping.ContainsKey($Match.Groups[1].Value)) 
-		{	
-			$Author = $userMapping[$Match.Groups[1].Value]
-			Write-Host "Found user" $Author "in user mapping file."
-			git commit --file $CommitMessageFileName --author $Author | Out-Null									
-		}
-		else 
-		{	
-			if ($UserMappingFile)
-			{
-				$GitUserName = git config user.name
-				$GitUserEmail = git config user.email				
-				Write-Host "Could not find user" $Match.Groups[1].Value "in user mapping file. The default configured user" $GitUserName $GitUserEmail "will be used for this commit."
-			}
-			git commit --file $CommitMessageFileName | Out-Null
-		}
+		
+		# Wed Dec 19 15:14:05 2029 -0800
+		$date = $ChangeSet.Date.ToString("ddd MMM d HH:mm:ss yyyy zz00")
+		git commit --date `"$date`" --author $ChangeSet.User -m `"$ChangeSet.Comment`" | Out-Null
+		
+		
 		popd 
 	}
-}
-
-# Retrieve the commit message for a specific changeset
-function GetCommitMessage ([string]$ChangeSet, [string]$CommitMessageFileName)
-{	
-	tf changeset $ChangeSet /noprompt | Out-File $CommitMessageFileName -encoding utf8
 }
 
 # Clone the repository to the directory where you started the script.
@@ -300,9 +269,6 @@ function CleanUp
 
 	Write-Host "Removing working directories in" $TempDir
 	Remove-Item -path $TempDir -force -recurse
-
-	# Remove history file
-	Remove-Item "history.txt"
 }
 
 # This is where all the fun starts...
