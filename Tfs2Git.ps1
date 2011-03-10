@@ -13,10 +13,10 @@
 Param
 (
 	[Parameter(Mandatory = $True)]
-	[string]$TFSServer,
 	[string]$TFSRepository,
+	[string]$Server,
 	[string]$GitRepository = "ConvertedFromTFS",
-	[string]$WorkspaceName = "testspace",
+	[string]$WorkspaceName = "TFS2GIT",
 	[int]$StartingCommit,
 	[int]$EndingCommit,
 	[string]$UserMappingFile
@@ -71,11 +71,11 @@ function AreSpecifiedCommitsPresent([array]$ChangeSets)
 	[bool]$EndingCommitFound = $false
 	foreach ($ChangeSet in $ChangeSets)
 	{
-		if ($ChangeSet -eq $StartingCommit)
+		if ($ChangeSet.ChangeSet -eq $StartingCommit)
 		{
 			$StartingCommitFound = $true
 		}
-		if ($ChangeSet -eq $EndingCommit)
+		if ($ChangeSet.ChangeSet -eq $EndingCommit)
 		{
 			$EndingCommitFound = $true
 		}
@@ -114,20 +114,19 @@ function GetTemporaryDirectory
 # Creates a hashtable with the user account name as key and the name/email address as value
 function GetUserMapping
 {
-	if (!(Test-Path $UserMappingFile))
-	{
-		Write-Host "Could not read user mapping file" $UserMappingFile
-		Write-Host "Aborting..."
-		exit
-	}	
-
 	$UserMapping = @{}
 
-	Write-Host "Reading user mapping file" $UserMappingFile
-	Get-Content $UserMappingFile | foreach { [regex]::Matches($_, "^([^=#]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
-	foreach ($key in $userMapping.Keys) 
+	if ((Test-Path $UserMappingFile))
 	{
-		Write-Host $key "=>" $userMapping[$key]
+		Write-Host "Reading user mapping file" $UserMappingFile
+		Get-Content $UserMappingFile | foreach { [regex]::Matches($_, "^([^=#]+)=(.*)$") } | foreach { $userMapping[$_.Groups[1].Value] = $_.Groups[2].Value }
+		#foreach ($key in $userMapping.Keys) 
+		#{
+		#	Write-Host $key "=>" $userMapping[$key]
+		#}
+	}	
+	else {
+		Write-Host "Could not read user mapping file" $UserMappingFile
 	}
 
 	return $UserMapping
@@ -146,10 +145,10 @@ function PrepareWorkspace
 	md $TempDir | Out-null
 
 	# Create the workspace and map it to the temporary directory we just created.
-	tf workspace /delete /server:$TFSServer $WorkspaceName /noprompt
-	tf workspace /new /server:$TFSServer /noprompt /comment:"Temporary workspace for converting a TFS repository to Git" $WorkspaceName
-	tf workfold /unmap /server:$TFSServer /workspace:$WorkspaceName $/
-	tf workfold /map /server:$TFSServer /workspace:$WorkspaceName $TFSRepository $TempDir
+	tf workspace /delete $TFSServer $WorkspaceName /noprompt | Out-null
+	tf workspace /new $TFSServer /noprompt /comment:"Temporary workspace for converting a TFS repository to Git" $WorkspaceName
+	tf workfold /unmap $TFSServer /workspace:$WorkspaceName $/
+	tf workfold /map $TFSServer /workspace:$WorkspaceName $TFSRepository $TempDir
 }
 
 
@@ -157,27 +156,22 @@ function PrepareWorkspace
 # and use a regular expression to retrieve the individual changeset numbers.
 function GetAllChangesetsFromHistory 
 {
-<<<<<<< HEAD
-	$content = tf history /server:$TFSServer $TFSRepository /recursive /noprompt /format:detailed | Out-String
-=======
-	$HistoryFileName = "history.txt"
+	Write-Host "Retrieving history for $TFSRepository"
+	
+	$content = tf history $TFSServer $TFSRepository /recursive /noprompt /format:detailed | Out-String
 
-	tf history /server:$TFSServer $TFSRepository /recursive /noprompt /format:brief | Out-File $HistoryFileName
->>>>>>> master
-
-	$match = @(new-object String('-', 139))
-	$msg = $content.Split($match, [stringsplitoptions]::RemoveEmptyEntries)
+	$msg = $content -split "^-{100,}", 0, "multiline"
 
 	# If we use this option, read the usermapping file.
 	$UserMapping = GetUserMapping
 
 	$sets = @()
 
-	$msg | ForEach-Object {
+	$msg | Where-Object { $_.Length -gt 0 } | ForEach-Object {
 		$changeset = ((Select-String -InputObject $_ -Pattern "(?m)^Changeset: (?<Changeset>.*)$")| select -expand Matches | foreach {$_.groups["Changeset"].value})
 		$date = [DateTime]((Select-String -InputObject $_ -Pattern "(?m)^Date: (?<Date>.*)$")| select -expand Matches | foreach {$_.groups["Date"].value})
 		$user = ((Select-String -InputObject $_ -Pattern "(?m)^User: (?:\w+\\)?(?<User>\w+)")| select -expand Matches | foreach {$_.groups["User"].value})
-		$comment = [regex]::Match($_, "(?s)Comment:(?<Message>.*)Items:").Groups[1].Value.Trim()
+		$comment = [regex]::Match($_, "(?s)Comment:(?<Message>.*?)Items:").Groups[1].Value.Trim()
 		
 		if($comment -ne "") {
 			$comment += "`n"
@@ -210,8 +204,11 @@ function Convert ([array]$ChangeSets)
 	$TemporaryDirectory = GetTemporaryDirectory
 
 	# Initialize a new git repository.
-	Write-Host "Creating empty Git repository at $TemporaryDirectory" 
-	git init $TemporaryDirectory
+	Write-Host "Creating empty Git repository at $TemporaryDirectory"
+	
+	pushd $TemporaryDirectory
+	
+	git init 
 
 	# Let git disregard casesensitivity for this repository (make it act like Windows).
 	# Prevents problems when someones only changes case on a file or directory.
@@ -220,47 +217,42 @@ function Convert ([array]$ChangeSets)
 	Write-Host "Retrieving sources from $TFSRepository in $TemporaryDirectory"
 
 	[bool]$RetrieveAll = $true
-	foreach ($ChangeSet in $ChangeSets)
-	{
+	$ChangeSets | Foreach-Object {
+		$ChangeSet = $_
+		$version = $ChangeSet.ChangeSet
+		
 		# Retrieve sources from TFS
-		Write-Host "Retrieving changeset $ChangeSet.ChangeSet" 
+		Write-Host "Retrieving changeset", $version 
 
 		if ($RetrieveAll)
 		{
 			# For the first changeset, we have to get everything.
-			tf get $TemporaryDirectory /force /recursive /noprompt /version:C$ChangeSet.ChangeSet | Out-Null
+			tf get $TemporaryDirectory /force /recursive /noprompt /version:C$version | Out-Null
 			$RetrieveAll = $false
 		}
 		else
 		{
 			# Now, only get the changed files.
-			tf get $TemporaryDirectory /recursive /noprompt /version:C$ChangeSet.ChangeSet | Out-Null
+			tf get $TemporaryDirectory /recursive /noprompt /version:C$version | Out-Null
 		}
 
 
 		# Add sources to Git
 		Write-Host "Adding commit to Git repository"
-		pushd $TemporaryDirectory
-		git add . | Out-Null
+		
+		git add -A 
 		
 		# Wed Dec 19 15:14:05 2029 -0800
 		$date = $ChangeSet.Date.ToString("ddd MMM d HH:mm:ss yyyy zz00")
-		git commit --date `"$date`" --author $ChangeSet.User -m `"$ChangeSet.Comment`" | Out-Null
-		
-		
-		popd 
+		$user = $ChangeSet.User
+		$ChangeSet.Comment | Out-File ..\commit.txt
+		Write-Host "git commit --date `"$date`" --author `"$user`" -F ..\commit.txt"
+		git commit --date `"$date`" --author `"$user`" -F ..\commit.txt
 	}
+	
+	popd
 }
 
-<<<<<<< HEAD
-=======
-# Retrieve the commit message for a specific changeset
-function GetCommitMessage ([string]$ChangeSet, [string]$CommitMessageFileName)
-{	
-	tf changeset $ChangeSet /server:$TFSServer /noprompt | Out-File $CommitMessageFileName -encoding utf8
-}
-
->>>>>>> master
 # Clone the repository to the directory where you started the script.
 function CloneToLocalBareRepository
 {
@@ -282,7 +274,7 @@ function CleanUp
 	$TempDir = GetTemporaryDirectory
 
 	Write-Host "Removing workspace from TFS"
-	tf workspace /delete /server:$TFSServer $WorkspaceName /noprompt
+	tf workspace /delete $TFSServer $WorkspaceName /noprompt
 
 	Write-Host "Removing working directories in" $TempDir
 	Remove-Item -path $TempDir -force -recurse
@@ -293,7 +285,14 @@ function Main
 {
 	CheckPath("git.cmd")
 	CheckPath("tf.exe")
+	
 	CheckParameters
+	
+	$TFSServer = ""
+	if($Server -ne "") {
+		$TFSServer = "/server:$Server"
+	}
+	
 	PrepareWorkspace
 
 	if ($StartingCommit -and $EndingCommit)
