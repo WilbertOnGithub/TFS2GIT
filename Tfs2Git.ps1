@@ -213,6 +213,7 @@ function Convert ([array]$ChangeSets)
 	# Let git disregard casesensitivity for this repository (make it act like Windows).
 	# Prevents problems when someones only changes case on a file or directory.
 	git config core.ignorecase true
+	git config i18n.commitencoding ISO-8859-1
 
 	Write-Host "Retrieving sources from $TFSRepository in $TemporaryDirectory"
 
