@@ -6,6 +6,9 @@ Available parameters for this script:
 -TFSRepository (mandatory)
 The TFS repository you wish to import. Ie. $/repository. 
 
+-Server (optional)
+The URL for your TFS server ex: https://tfs.acme.com/
+
 -GitRepository (optional)
 The name you want to give the Git repository. If no parameter is supplied, the default name will 'ConvertedFromTFS'.
 
