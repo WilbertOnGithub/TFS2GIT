@@ -247,7 +247,6 @@ function Convert ([array]$ChangeSets)
 		$date = $ChangeSet.Date.ToString("ddd MMM d HH:mm:ss yyyy zz00")
 		$user = $ChangeSet.User
 		$ChangeSet.Comment | Out-File ..\commit.txt
-		Write-Host "git commit --date `"$date`" --author `"$user`" -F ..\commit.txt"
 		git commit --date `"$date`" --author `"$user`" -F ..\commit.txt
 	}
 	
