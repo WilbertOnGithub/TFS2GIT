@@ -19,7 +19,10 @@ Param
 	[string]$WorkspaceName = "TFS2GIT",
 	[int]$StartingCommit,
 	[int]$EndingCommit,
-	[string]$UserMappingFile
+	[string]$UserMappingFile,
+	
+	# create lightweight tags on the first and list imported commits
+	[switch]$t
 )
 
 function CheckPath([string]$program) 
@@ -243,7 +246,7 @@ function Convert ([array]$ChangeSets)
 		# Retrieve sources from TFS
 		Write-Host "Retrieving changeset $version"  
 
-		if ($RetrieveAll)
+		if ($count -eq 1)
 		{
 			# For the first changeset, we have to get everything.
 			tf get $TemporaryDirectory /force /recursive /noprompt /version:C$version | Out-Null
@@ -266,7 +269,17 @@ function Convert ([array]$ChangeSets)
 		
 		git commit -q --date `"$date`" --author `"$user`" -F ..\commit.txt 
 		
+		# if flag set create a lightweight tag on the first commit
+		if($count -eq 1 -AND $t) {
+			git tag Start-TFS-Import
+		}
+		
 		$count++
+	}
+	
+	# if flag set create a lightweight tag on the last commit
+	if($t) {
+		git tag End-TFS-Import
 	}
 	
 	Write-Host "Running garbage collection on git repository!"
