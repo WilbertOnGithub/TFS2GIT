@@ -27,6 +27,8 @@ When this parameter is used, StartingCommit must also be used.
 The script can convert TFS user accounts to Git accounts. For this to work you need to specify a user mapping file.
 See the content of 'usermappings.txt' for an example.
 
+-t (optional)
+creates a lightweight tag on the first and last imported commits 
 
 Examples:
 Converting a TFS repository with full history
