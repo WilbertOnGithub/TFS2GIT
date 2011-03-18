@@ -274,6 +274,9 @@ function Convert ([array]$ChangeSets)
 			git tag Start-TFS-Import
 		}
 		
+		# mom said clean up your room!
+		rm ..\commit.txt
+		
 		$count++
 	}
 	
