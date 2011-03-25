@@ -239,7 +239,7 @@ function Convert ([array]$ChangeSets)
 		# Add sources to Git
 		Write-Host "Adding commit to Git repository"
 		pushd $TemporaryDirectory
-		git add . | Out-Null
+		git add --all | Out-Null
 		$CommitMessageFileName = "commitmessage.txt"
 		GetCommitMessage $ChangeSet $CommitMessageFileName
 
