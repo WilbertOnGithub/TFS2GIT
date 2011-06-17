@@ -41,7 +41,7 @@ function CheckParameters
 {
 	if($Script:GitRepository -eq "") {
 		$index = $TFSRepository.LastIndexOf("/") + 1;
-		$Script:GitRepository = $TFSRepository.SubString($index, $TFSRepository.Length - $index);
+		$Script:GitRepository = $TFSRepository.SubString($index, $TFSRepository.Length - $index) + ".git";
 	}
 	
 	Write-Host "Git Repo will be named: $Script:GitRepository"
