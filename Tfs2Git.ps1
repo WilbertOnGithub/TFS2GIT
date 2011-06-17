@@ -15,7 +15,7 @@ Param
 	[Parameter(Mandatory = $True)]
 	[string]$TFSRepository,
 	[string]$Server,
-	[string]$GitRepository = "ConvertedFromTFS",
+	[string]$GitRepository = "",
 	[string]$WorkspaceName = "TFS2GIT",
 	[int]$StartingCommit,
 	[int]$EndingCommit,
@@ -39,6 +39,13 @@ function CheckPath([string]$program)
 # Do some sanity checks on specific parameters.
 function CheckParameters
 {
+	if($Script:GitRepository -eq "") {
+		$index = $TFSRepository.LastIndexOf("/") + 1;
+		$Script:GitRepository = $TFSRepository.SubString($index, $TFSRepository.Length - $index);
+	}
+	
+	Write-Host "Git Repo will be named: $Script:GitRepository"
+
 	# If Starting and Ending commit are not used, simply ignore them.
 	if (!$StartingCommit -and !$EndingCommit)
 	{
