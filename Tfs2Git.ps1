@@ -25,6 +25,13 @@ Param
 	[switch]$t
 )
 
+function Exec([scriptblock]$cmd, [string]$errorMessage = "Error executing command: " + $cmd) {
+  & $cmd
+  if ($LastExitCode -ne 0) {
+    throw $errorMessage
+  }
+}
+
 function CheckPath([string]$program) 
 {
 	$count = (gcm -CommandType Application $program -ea 0 | Measure-Object).Count
@@ -157,10 +164,10 @@ function PrepareWorkspace
 	Write-Host "Creating TFS workspace for $TFSRepository"
 
 	# Create the workspace and map it to the temporary directory we just created.
-	tf workspace /delete $TFSServer $WorkspaceName /noprompt | Out-null
-	tf workspace /new $TFSServer /noprompt /comment:"Temporary workspace for converting a TFS repository to Git" $WorkspaceName
-	tf workfold /unmap $TFSServer /workspace:$WorkspaceName $/
-	tf workfold /map $TFSServer /workspace:$WorkspaceName $TFSRepository $TempDir
+	exec { tf workspace /delete $TFSServer $WorkspaceName /noprompt | Out-null }
+	exec { tf workspace /new $TFSServer /noprompt /comment:"Temporary workspace for converting a TFS repository to Git" $WorkspaceName }
+	exec { tf workfold /unmap $TFSServer /workspace:$WorkspaceName $/ }
+	exec { tf workfold /map $TFSServer /workspace:$WorkspaceName $TFSRepository $TempDir }
 }
 
 
