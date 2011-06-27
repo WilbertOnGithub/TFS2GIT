@@ -1,3 +1,6 @@
 # Ignore backup files from Vim
 
 *.*~
+
+# Ignore internal directory	
+internal

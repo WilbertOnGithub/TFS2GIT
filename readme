@@ -33,18 +33,18 @@ creates a lightweight tag on the first and last imported commits
 Examples:
 Converting a TFS repository with full history
 
-TFS2GIT.ps1 $/repository
+.\tfs2git "$/TFS/repository/path" https://tfs.yourserver.com/ -UserMappingFile userMappings.txt
 
 or
 
-TFS2GIT.ps1 -TFSRepository $/repository
+.\tfs2git -TFSRepository "$/TFS/repository/path"
 
 
 Converting a TFS repository with a limited history
 
-TFS2GIT.ps1 -TFSRepository $/repository -StartingCommit 1 -EndingCommit 100
+.\tfs2git -TFSRepository "$/TFS/repository/path" -StartingCommit 1 -EndingCommit 100
 
 
 Converting a TFS repository while using a usermapping file
 
-TFS2GIT.ps1 -TFSRepository $/repository -UserMappingfile filename
+.\tfs2git -TFSRepository "$/TFS/repository/path" -UserMappingfile filename
