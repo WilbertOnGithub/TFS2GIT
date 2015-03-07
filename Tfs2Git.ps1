@@ -17,7 +17,8 @@ Param
 	[string]$WorkspaceName = "TFS2GIT",
 	[int]$StartingCommit,
 	[int]$EndingCommit,
-	[string]$UserMappingFile
+	[string]$UserMappingFile,
+	[string]$UserTagName = "User"
 )
 
 function CheckPath([string]$program) 
@@ -248,7 +249,9 @@ function Convert ([array]$ChangeSets)
 		git rm $CommitMessageFileName --cached --force		
 
 		$CommitMsg = Get-Content $CommitMessageFileName		
-		$Match = ([regex]'User: (\w+)').Match($commitMsg)
+		# Username in 'User:' tag may contain '-' or '\' in some environment. (ex. 'computername\username')
+		$Pattern = $UserTagName + ': ([\w\\\-]+)' 
+		$Match = ([regex]$Pattern).Match($commitMsg)
 		if ($UserMapping.Count -gt 0 -and $Match.Success -and $UserMapping.ContainsKey($Match.Groups[1].Value)) 
 		{	
 			$Author = $userMapping[$Match.Groups[1].Value]
@@ -308,7 +311,9 @@ function CleanUp
 # This is where all the fun starts...
 function Main
 {
-	CheckPath("git.cmd")
+	# Early version of msysgit had 'git.cmd' but recent version of it replaced to 'git.exe'.
+	# Therefore we can use 'git' without extention. This should be enougth for us.
+	CheckPath("git")
 	CheckPath("tf.exe")
 	CheckParameters
 	PrepareWorkspace
