@@ -147,32 +147,33 @@ function GetUserMapping
 	return $UserMapping
 }
 
-function UpdateCommitDateIfNeed([string]$commitMessageFileName, [string]$author)
+# Apply checkin date to git commiter/author date if specified
+function ApplyCheckinDate([string]$commitMessageFileName, [string]$author)
 {
-	if (-not $CommitDateIsAsCheckin) {
+	if (-not $CommitDateIsAsCheckin)
+	{
 		return
 	}
 
-	Write-Host "FN:" + $commitMessageFileName
     $pattern = "^" + $DateTagName + ": (.*)\s*$"    
-#    Write-Host "--" + $_
 	Get-Content $commitMessageFileName | foreach {
+		# Retrieve the value in Date: tag.
 		$m = [regex]::Match($_, $pattern)
-		if ($m.Success) {
-#			Write-Host "HIT1 " + $m.Value
-#			Write-Host "HIT2 " + $m.Groups[1]
+		if ($m.Success)
+		{
 			$text = $m.Groups[1].Value
-			if ($text.Length -gt 0) {
+			if ($text.Length -gt 0)
+			{
 				$date = [DateTime]::Parse($text)
-#				Write-Host "TRANSLATED:" + $date.ToString("yyyy-MM-dd HH:mm:ss")
 				$gitDate = $date.ToString("yyyy-MM-dd HH:mm:ss")
-# incorrect
-#				[System.Environment]::SetEnvironmentVariable('GIT_COMMITTER_DATE', $gitDate, [System.EnvironmentVariableTarget]::User)
 				$Env:GIT_COMMITTER_DATE="$gitDate" 
-				if ($author) {
+				if ($author)
+				{
 					# $author is specified.
 					git commit --amend --date $gitDate --file $CommitMessageFileName --author $author | Out-Null									
-				} else {
+				}
+				else
+				{
 					git commit --amend --date $gitDate --file $CommitMessageFileName | Out-Null									
 				}
 			}
@@ -293,7 +294,7 @@ function Convert ([array]$ChangeSets)
 			$Author = $userMapping[$Match.Groups[1].Value]
 			Write-Host "Found user" $Author "in user mapping file."
 			git commit --file $CommitMessageFileName --author $Author | Out-Null									
-			UpdateCommitDateIfNeed $CommitMessageFileName $Author 
+			ApplyCheckinDate $CommitMessageFileName $Author 
 		}
 		else 
 		{	
@@ -304,7 +305,7 @@ function Convert ([array]$ChangeSets)
 				Write-Host "Could not find user" $Match.Groups[1].Value "in user mapping file. The default configured user" $GitUserName $GitUserEmail "will be used for this commit."
 			}
 			git commit --file $CommitMessageFileName | Out-Null
-			UpdateCommitDateIfNeed $CommitMessageFileName $null 
+			ApplyCheckinDate $CommitMessageFileName $null 
 		}
 		popd 
 	}
