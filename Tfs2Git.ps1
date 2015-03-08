@@ -155,7 +155,7 @@ function ApplyCheckinDate([string]$commitMessageFileName, [string]$author)
 		return
 	}
 
-    $pattern = "^" + $DateTagName + ": (.*)\s*$"    
+    $pattern = "^" + $DateTagName + ": (.*)\s*$"
 	Get-Content $commitMessageFileName | foreach {
 		# Retrieve the value in Date: tag.
 		$m = [regex]::Match($_, $pattern)
@@ -166,7 +166,8 @@ function ApplyCheckinDate([string]$commitMessageFileName, [string]$author)
 			{
 				$date = [DateTime]::Parse($text)
 				$gitDate = $date.ToString("yyyy-MM-dd HH:mm:ss")
-				$Env:GIT_COMMITTER_DATE="$gitDate" 
+				$orig = $Env:GIT_COMMITTER_DATE
+				$Env:GIT_COMMITTER_DATE = "$gitDate" 
 				if ($author)
 				{
 					# $author is specified.
@@ -176,6 +177,8 @@ function ApplyCheckinDate([string]$commitMessageFileName, [string]$author)
 				{
 					git commit --amend --date $gitDate --file $CommitMessageFileName | Out-Null									
 				}
+
+				$Env:GIT_COMMITTER_DATE = $pre
 			}
 			return
 		}
