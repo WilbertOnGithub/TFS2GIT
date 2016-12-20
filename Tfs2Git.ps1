@@ -17,7 +17,9 @@ Param
 	[string]$WorkspaceName = "TFS2GIT",
 	[int]$StartingCommit,
 	[int]$EndingCommit,
-	[string]$UserMappingFile
+	[string]$UserMappingFile,
+	[switch]$CommitDateIsAsCheckin,
+	[string]$DateTagName = "Date"
 )
 
 function CheckPath([string]$program) 
@@ -144,6 +146,44 @@ function GetUserMapping
 	return $UserMapping
 }
 
+# Apply checkin date to git commiter/author date if specified
+function ApplyCheckinDate([string]$commitMessageFileName, [string]$author)
+{
+	if (-not $CommitDateIsAsCheckin)
+	{
+		return
+	}
+
+    $pattern = "^" + $DateTagName + ": (.*)\s*$"
+	Get-Content $commitMessageFileName | foreach {
+		# Retrieve the value in Date: tag.
+		$m = [regex]::Match($_, $pattern)
+		if ($m.Success)
+		{
+			$text = $m.Groups[1].Value
+			if ($text.Length -gt 0)
+			{
+				$date = [DateTime]::Parse($text)
+				$gitDate = $date.ToString("yyyy-MM-dd HH:mm:ss")
+				$orig = $Env:GIT_COMMITTER_DATE
+				$Env:GIT_COMMITTER_DATE = "$gitDate" 
+				if ($author)
+				{
+					# $author is specified.
+					git commit --amend --date $gitDate --file $CommitMessageFileName --author $author | Out-Null									
+				}
+				else
+				{
+					git commit --amend --date $gitDate --file $CommitMessageFileName | Out-Null									
+				}
+
+				$Env:GIT_COMMITTER_DATE = $pre
+			}
+			return
+		}
+	}
+}
+
 function PrepareWorkspace
 {
 	$TempDir = GetTemporaryDirectory
@@ -254,6 +294,7 @@ function Convert ([array]$ChangeSets)
 			$Author = $userMapping[$Match.Groups[1].Value]
 			Write-Host "Found user" $Author "in user mapping file."
 			git commit --file $CommitMessageFileName --author $Author | Out-Null									
+			ApplyCheckinDate $CommitMessageFileName $Author 
 		}
 		else 
 		{	
@@ -264,6 +305,7 @@ function Convert ([array]$ChangeSets)
 				Write-Host "Could not find user" $Match.Groups[1].Value "in user mapping file. The default configured user" $GitUserName $GitUserEmail "will be used for this commit."
 			}
 			git commit --file $CommitMessageFileName | Out-Null
+			ApplyCheckinDate $CommitMessageFileName $null 
 		}
 		popd 
 	}
